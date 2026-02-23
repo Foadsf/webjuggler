@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Task } from '../types';
+import { useLogger } from '../lib/logger';
 
 interface KanbanProps {
   tasks: Task[];
@@ -7,6 +8,13 @@ interface KanbanProps {
 }
 
 export function Kanban({ tasks, onTaskUpdate }: KanbanProps) {
+  const logger = useLogger('Kanban');
+
+  useEffect(() => {
+    logger.debug('Kanban mounted', { taskCount: tasks.length });
+    return () => logger.debug('Kanban unmounted');
+  }, []);
+
   const columns: { id: Task['status']; title: string }[] = [
     { id: 'todo', title: 'To Do' },
     { id: 'in-progress', title: 'In Progress' },
@@ -14,6 +22,7 @@ export function Kanban({ tasks, onTaskUpdate }: KanbanProps) {
   ];
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    logger.info('Drag started', { taskId });
     e.dataTransfer.setData('taskId', taskId);
   };
 
@@ -21,8 +30,16 @@ export function Kanban({ tasks, onTaskUpdate }: KanbanProps) {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
     const task = tasks.find(t => t.id === taskId);
-    if (task && task.status !== status) {
-      onTaskUpdate({ ...task, status });
+    
+    if (task) {
+      if (task.status !== status) {
+        logger.info('Task dropped - updating status', { taskId, from: task.status, to: status });
+        onTaskUpdate({ ...task, status });
+      } else {
+        logger.debug('Task dropped - no status change', { taskId, status });
+      }
+    } else {
+      logger.warn('Drop failed - task not found', { taskId });
     }
   };
 
