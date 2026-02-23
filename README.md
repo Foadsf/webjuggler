@@ -105,6 +105,15 @@ VITE_LOG_MAX_ENTRIES=1000  # Number of entries to keep in the circular buffer
 - **Gantt bars not visible**: Gantt view requires tasks to have **both** `start` and `end` dates defined in ISO format (`YYYY-MM-DD`). Check the Debug Console for "Invalid date" warnings.
 - **PERT not showing links**: Verify that `depends !taskId` matches the actual `task taskId` defined in the file.
 
+## Deployment
+
+This project uses GitHub Actions to deploy to GitHub Pages. The workflow:
+1. Builds the Vite project (`npm run build`)
+2. Uploads the `dist/` folder as an artifact
+3. Deploys to GitHub Pages
+
+**Important**: Repository Settings → Pages → Source must be set to "GitHub Actions", not "Deploy from a branch".
+
 ## Building for Production
 
 ```bash
