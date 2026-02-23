@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Task } from '../types';
 import { addDays, differenceInDays, format, min, max, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { useLogger } from '../lib/logger';
 
 interface GanttProps {
   tasks: Task[];
@@ -9,8 +10,15 @@ interface GanttProps {
 
 export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
   const [draggingTask, setDraggingTask] = useState<{ id: string; startX: number; originalStart: Date; originalEnd: Date } | null>(null);
+  const logger = useLogger('Gantt');
+
+  useEffect(() => {
+    logger.debug('Gantt mounted', { taskCount: tasks.length });
+    return () => logger.debug('Gantt unmounted');
+  }, []);
 
   const { startDate, endDate, days } = useMemo(() => {
+    const startTime = performance.now();
     if (tasks.length === 0) return { startDate: new Date(), endDate: new Date(), days: [] };
 
     const dates = tasks.flatMap(t => [t.start, t.end]).filter((d): d is Date => !!d);
@@ -20,11 +28,16 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
     const minDate = startOfWeek(min(dates));
     const maxDate = endOfWeek(max(dates));
     
-    return {
+    const result = {
       startDate: minDate,
       endDate: maxDate,
       days: eachDayOfInterval({ start: minDate, end: maxDate })
     };
+    
+    const endTime = performance.now();
+    logger.debug('Gantt calculation complete', { duration: `${(endTime - startTime).toFixed(2)}ms`, dayCount: result.days.length });
+    
+    return result;
   }, [tasks]);
 
   if (tasks.length === 0) {
@@ -36,6 +49,7 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
 
   const handleDragStart = (e: React.MouseEvent, task: Task) => {
     if (!task.start || !task.end || !onTaskUpdate) return;
+    logger.info('Task drag started', { taskId: task.id, start: task.start });
     setDraggingTask({
       id: task.id,
       startX: e.clientX,
@@ -53,17 +67,29 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
     if (deltaDays !== 0) {
       const task = tasks.find(t => t.id === draggingTask.id);
       if (task) {
+        const newStart = addDays(draggingTask.originalStart, deltaDays);
+        const newEnd = addDays(draggingTask.originalEnd, deltaDays);
+        
+        logger.debug('Task dragging', { 
+          taskId: task.id, 
+          deltaDays, 
+          newStart: format(newStart, 'yyyy-MM-dd') 
+        });
+
         onTaskUpdate({
           ...task,
-          start: addDays(draggingTask.originalStart, deltaDays),
-          end: addDays(draggingTask.originalEnd, deltaDays),
+          start: newStart,
+          end: newEnd,
         });
       }
     }
   };
 
   const handleDragEnd = () => {
-    setDraggingTask(null);
+    if (draggingTask) {
+      logger.info('Task drag ended', { taskId: draggingTask.id });
+      setDraggingTask(null);
+    }
   };
 
   return (
