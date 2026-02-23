@@ -1,0 +1,5 @@
+{
+  "name": "WebJuggler",
+  "description": "A web-based project management tool with Kanban, Gantt, and PERT visualizations.",
+  "requestFramePermissions": []
+}
