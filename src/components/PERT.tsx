@@ -1,16 +1,29 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { Task } from '../types';
+import { useLogger } from '../lib/logger';
+import { useTaskOperations } from '../hooks/useTaskOperations';
 
-interface PERTProps {
-  tasks: Task[];
-}
-
-export function PERT({ tasks }: PERTProps) {
+export function PERT() {
+  const { tasks } = useTaskOperations();
   const svgRef = useRef<SVGSVGElement>(null);
+  const logger = useLogger('PERT');
 
   useEffect(() => {
-    if (!svgRef.current || tasks.length === 0) return;
+    // Validate props/state
+    if (!Array.isArray(tasks)) {
+      logger.error('tasks is not an array', { type: typeof tasks });
+      return;
+    }
+    logger.debug('PERT mounted', { taskCount: tasks?.length ?? 0 });
+    return () => logger.debug('PERT unmounted');
+  }, [tasks]);
+
+  useEffect(() => {
+    if (!svgRef.current || (tasks?.length ?? 0) === 0) return;
+
+    const startTime = performance.now();
+    logger.info('D3 Simulation starting', { nodeCount: tasks?.length ?? 0 });
 
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
@@ -19,16 +32,18 @@ export function PERT({ tasks }: PERTProps) {
     svg.selectAll('*').remove(); // Clear previous render
 
     // Create nodes and links
-    const nodes = tasks.map(t => ({ ...t, radius: 30 }));
-    const links = tasks.flatMap(t => 
-      t.depends.map(depId => ({
+    const nodes = (tasks ?? []).map(t => ({ ...t, radius: 30 }));
+    const links = (tasks ?? []).flatMap(t => 
+      (t.depends ?? []).map(depId => ({
         source: depId,
         target: t.id
       }))
-    ).filter(link => tasks.some(t => t.id === link.source)); // Ensure source exists
+    ).filter(link => (tasks ?? []).some(t => t.id === link.source)); // Ensure source exists
 
-    const simulation = d3.forceSimulation(nodes as any)
-      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(150))
+    logger.debug('Links created', { linkCount: links?.length ?? 0 });
+
+    const simulation = d3.forceSimulation((nodes as any) ?? [])
+      .force('link', d3.forceLink(links ?? []).id((d: any) => d.id).distance(150))
       .force('charge', d3.forceManyBody().strength(-400))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('x', d3.forceX(width / 2).strength(0.1))
@@ -94,7 +109,11 @@ export function PERT({ tasks }: PERTProps) {
         .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
     });
 
+    const endTime = performance.now();
+    logger.debug('D3 Setup complete', { duration: `${(endTime - startTime).toFixed(2)}ms` });
+
     function dragstarted(event: any, d: any) {
+      logger.debug('Node drag start', { nodeId: d.id });
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
@@ -106,6 +125,7 @@ export function PERT({ tasks }: PERTProps) {
     }
 
     function dragended(event: any, d: any) {
+      logger.debug('Node drag end', { nodeId: d.id, finalPos: { x: d.x, y: d.y } });
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
@@ -113,6 +133,7 @@ export function PERT({ tasks }: PERTProps) {
 
     return () => {
       simulation.stop();
+      logger.debug('D3 Simulation stopped');
     };
   }, [tasks]);
 

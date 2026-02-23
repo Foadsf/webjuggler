@@ -73,8 +73,46 @@ Use the sidebar navigation to switch between:
 
 ### Keyboard Shortcuts
 
-- Standard browser shortcuts apply
+- **Ctrl + Shift + D**: Toggle Debug Console
 - Drag and drop supported across all views
+
+## Debug Logging
+
+WebJuggler includes a comprehensive diagnostic logging infrastructure to assist with development and troubleshooting.
+
+### Features
+
+- **Real-time UI Console**: View color-coded logs directly in the browser
+- **Dual Output**: Logs are mirrored to the browser console and can be exported to JSON
+- **Granular Filtering**: Filter by log level (Debug, Info, Warn, Error, Fatal) or source component
+- **Automatic Redaction**: Sanitizes sensitive data like local file paths and API keys
+- **Error Boundaries**: Captures and logs React component crashes with full stack traces and context
+- **Performance Monitoring**: Tracks render durations and D3 simulation performance
+
+### Configuration
+
+Control logging behavior via `.env.local`:
+
+```env
+VITE_DEBUG_MODE=false      # Set to true to enable verbose logging in production
+VITE_LOG_LEVEL=info        # Minimum level to capture (debug, info, warn, error)
+VITE_LOG_MAX_ENTRIES=1000  # Number of entries to keep in the circular buffer
+```
+
+### Troubleshooting
+
+- **Kanban Empty**: Ensure task status is 'todo', 'in-progress', or 'done'. The view normalizes common variations.
+- **Gantt bars not visible**: Gantt view requires tasks to have **both** `start` and `end` dates defined in ISO format (`YYYY-MM-DD`). Check the Debug Console for "Invalid date" warnings.
+- **PERT not showing links**: Verify that `depends !taskId` matches the actual `task taskId` defined in the file.
+
+## Deployment
+
+This project uses GitHub Actions to deploy to GitHub Pages. The workflow:
+1. Builds the Vite project (`npm run build`)
+2. Uploads the `dist/` folder as an artifact
+3. Deploys to GitHub Pages
+
+**Important**: Repository Settings → Pages → Source must be set to "GitHub Actions", not "Deploy from a branch".
 
 ## Building for Production
 
