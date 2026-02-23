@@ -73,8 +73,31 @@ Use the sidebar navigation to switch between:
 
 ### Keyboard Shortcuts
 
-- Standard browser shortcuts apply
+- **Ctrl + Shift + D**: Toggle Debug Console
 - Drag and drop supported across all views
+
+## Debug Logging
+
+WebJuggler includes a comprehensive diagnostic logging infrastructure to assist with development and troubleshooting.
+
+### Features
+
+- **Real-time UI Console**: View color-coded logs directly in the browser
+- **Dual Output**: Logs are mirrored to the browser console and can be exported to JSON
+- **Granular Filtering**: Filter by log level (Debug, Info, Warn, Error, Fatal) or source component
+- **Automatic Redaction**: Sanitizes sensitive data like local file paths and API keys
+- **Error Boundaries**: Captures and logs React component crashes with full stack traces and context
+- **Performance Monitoring**: Tracks render durations and D3 simulation performance
+
+### Configuration
+
+Control logging behavior via `.env.local`:
+
+```env
+VITE_DEBUG_MODE=false      # Set to true to enable verbose logging in production
+VITE_LOG_LEVEL=info        # Minimum level to capture (debug, info, warn, error)
+VITE_LOG_MAX_ENTRIES=1000  # Number of entries to keep in the circular buffer
+```
 
 ## Building for Production
 
