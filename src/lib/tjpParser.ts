@@ -36,7 +36,7 @@ export function parseTjp(content: string): Task[] {
         return depId;
       }) : [];
 
-      tasks.push({
+      const task: Task = {
         id,
         name,
         start: startMatch ? new Date(startMatch[1]) : undefined,
@@ -44,7 +44,13 @@ export function parseTjp(content: string): Task[] {
         duration: durationMatch ? parseInt(durationMatch[1], 10) : undefined,
         depends,
         status: 'todo',
-      });
+      };
+
+      if (!task.id || !task.name) {
+        logger.warn('TjpParser', 'Parsed task is missing critical fields', { task });
+      }
+
+      tasks.push(task);
     } catch (e) {
       logger.error('TjpParser', `Failed to parse task body for ${id} at line ${lineNumber}`, { error: e, body });
     }
