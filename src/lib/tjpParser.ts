@@ -21,10 +21,24 @@ export function parseTjp(content: string): Task[] {
 
     try {
       const startMatch = body.match(/start\s+([0-9]{4}-[0-9]{2}-[0-9]{2})/);
-      if (startMatch) log(`  Found start date for ${id}`, { start: startMatch[1] });
+      const startStr = startMatch ? startMatch[1] : undefined;
+      const startDate = startStr ? new Date(startStr) : undefined;
+      
+      if (startStr && (!startDate || isNaN(startDate.getTime()))) {
+        logger.warn('TjpParser', `Invalid start date for ${id}`, { startStr });
+      }
+      
+      if (startDate) log(`  Found start date for ${id}`, { start: startStr });
 
       const endMatch = body.match(/end\s+([0-9]{4}-[0-9]{2}-[0-9]{2})/);
-      if (endMatch) log(`  Found end date for ${id}`, { end: endMatch[1] });
+      const endStr = endMatch ? endMatch[1] : undefined;
+      const endDate = endStr ? new Date(endStr) : undefined;
+
+      if (endStr && (!endDate || isNaN(endDate.getTime()))) {
+        logger.warn('TjpParser', `Invalid end date for ${id}`, { endStr });
+      }
+
+      if (endDate) log(`  Found end date for ${id}`, { end: endStr });
 
       const durationMatch = body.match(/duration\s+([0-9]+)[dhw]/);
       if (durationMatch) log(`  Found duration for ${id}`, { duration: durationMatch[1] });
@@ -39,8 +53,8 @@ export function parseTjp(content: string): Task[] {
       const task: Task = {
         id,
         name,
-        start: startMatch ? new Date(startMatch[1]) : undefined,
-        end: endMatch ? new Date(endMatch[1]) : undefined,
+        start: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+        end: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
         duration: durationMatch ? parseInt(durationMatch[1], 10) : undefined,
         depends,
         status: 'todo',

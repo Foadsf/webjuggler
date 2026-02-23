@@ -99,6 +99,12 @@ VITE_LOG_LEVEL=info        # Minimum level to capture (debug, info, warn, error)
 VITE_LOG_MAX_ENTRIES=1000  # Number of entries to keep in the circular buffer
 ```
 
+### Troubleshooting
+
+- **Kanban Empty**: Ensure task status is 'todo', 'in-progress', or 'done'. The view normalizes common variations.
+- **Gantt bars not visible**: Gantt view requires tasks to have **both** `start` and `end` dates defined in ISO format (`YYYY-MM-DD`). Check the Debug Console for "Invalid date" warnings.
+- **PERT not showing links**: Verify that `depends !taskId` matches the actual `task taskId` defined in the file.
+
 ## Building for Production
 
 ```bash

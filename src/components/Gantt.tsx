@@ -35,13 +35,31 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
     };
     
     const endTime = performance.now();
-    logger.debug('Gantt calculation complete', { duration: `${(endTime - startTime).toFixed(2)}ms`, dayCount: result.days.length });
+    logger.debug('Gantt calculation complete', { 
+      duration: `${(endTime - startTime).toFixed(2)}ms`, 
+      dayCount: result.days.length,
+      hasValidDates: dates.length > 0
+    });
     
     return result;
   }, [tasks]);
 
+  const hasAnyValidDates = useMemo(() => 
+    tasks.some(t => t.start && !isNaN(t.start.getTime()) && t.end && !isNaN(t.end.getTime())),
+    [tasks]
+  );
+
   if (tasks.length === 0) {
-    return <div className="flex items-center justify-center h-full text-gray-500">No tasks with dates to display</div>;
+    return <div className="flex items-center justify-center h-full text-gray-500">No tasks loaded</div>;
+  }
+
+  if (!hasAnyValidDates) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 p-6 text-center">
+        <p className="text-lg font-medium">No valid dates found</p>
+        <p className="text-sm mt-1">Gantt view requires tasks to have both start and end dates defined.</p>
+      </div>
+    );
   }
 
   const totalDays = days.length;
@@ -127,8 +145,30 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
             let width = 0;
 
             if (hasDates) {
-              leftOffset = differenceInDays(task.start!, startDate) * cellWidth;
-              width = (differenceInDays(task.end!, task.start!) + 1) * cellWidth;
+              const startVal = task.start!;
+              const endVal = task.end!;
+              
+              const diffStart = differenceInDays(startVal, startDate);
+              const diffEnd = differenceInDays(endVal, startVal);
+              
+              leftOffset = diffStart * cellWidth;
+              width = (diffEnd + 1) * cellWidth;
+
+              // NaN safety and minimum width
+              if (isNaN(leftOffset)) leftOffset = 0;
+              if (isNaN(width) || width < 0) width = 0;
+              if (width > 0 && width < 2) width = 2; // Minimum visible width
+
+              if (isNaN(diffStart) || isNaN(diffEnd) || width === 0) {
+                logger.warn('Gantt bar calculation anomaly', { 
+                  taskId: task.id, 
+                  leftOffset, 
+                  width, 
+                  start: startVal, 
+                  end: endVal,
+                  startDate
+                });
+              }
             }
 
             return (
