@@ -3,7 +3,8 @@ import { Kanban } from './components/Kanban';
 import { Gantt } from './components/Gantt';
 import { PERT } from './components/PERT';
 import { parseTjp } from './lib/tjpParser';
-import { LayoutDashboard, CalendarDays, Network, Upload, FolderOpen } from 'lucide-react';
+import { exportTjp } from './lib/tjpExporter';
+import { LayoutDashboard, CalendarDays, Network, Upload, FolderOpen, Download, RotateCcw, RotateCw } from 'lucide-react';
 import { useLogger } from './lib/logger';
 import { DebugConsole } from './components/DebugConsole';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -16,7 +17,7 @@ function MainLayout() {
   const [view, setView] = useState<ViewMode>('kanban');
   const logger = useLogger('App');
   const { tasks } = useTaskContext();
-  const { loadTasks, updateTask } = useTaskOperations();
+  const { loadTasks, undo, redo, canUndo, canRedo } = useTaskOperations();
 
   useEffect(() => {
     logger.info('Application mounted', { 
@@ -26,6 +27,23 @@ function MainLayout() {
     });
     return () => logger.info('Application unmounting');
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo: Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        undo();
+      } 
+      // Redo: Ctrl+Y
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,6 +63,20 @@ function MainLayout() {
     };
     reader.onerror = (err) => logger.error('File reader error', { error: err });
     reader.readAsText(file);
+  };
+
+  const handleExport = () => {
+    const content = exportTjp(tasks);
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `project-${new Date().toISOString().split('T')[0]}.tjp`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    logger.info('Project exported to .tjp');
   };
 
   const handleViewChange = (newView: ViewMode) => {
@@ -94,10 +126,29 @@ function MainLayout() {
           </button>
         </div>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="flex gap-2 justify-between">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Undo (Ctrl+Z)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Undo
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Redo (Ctrl+Y)"
+            >
+              <RotateCw className="w-3.5 h-3.5" /> Redo
+            </button>
+          </div>
+
           <label className="flex items-center justify-center gap-2 w-full bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 cursor-pointer transition-colors shadow-sm">
             <Upload className="w-4 h-4" />
-            Open .tjp File
+            Open .tjp
             <input
               type="file"
               accept=".tjp"
@@ -105,6 +156,15 @@ function MainLayout() {
               onChange={handleFileUpload}
             />
           </label>
+          
+          <button
+            onClick={handleExport}
+            disabled={tasks.length === 0}
+            className="flex items-center justify-center gap-2 w-full bg-indigo-600 border border-transparent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export .tjp
+          </button>
         </div>
       </div>
 
@@ -127,8 +187,8 @@ function MainLayout() {
           ) : (
             <>
               {view === 'kanban' && <Kanban />}
-              {view === 'gantt' && <Gantt tasks={tasks} onTaskUpdate={updateTask} />}
-              {view === 'pert' && <PERT tasks={tasks} />}
+              {view === 'gantt' && <Gantt />}
+              {view === 'pert' && <PERT />}
             </>
           )}
         </main>
