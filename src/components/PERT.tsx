@@ -2,19 +2,17 @@ import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { Task } from '../types';
 import { useLogger } from '../lib/logger';
+import { useTaskOperations } from '../hooks/useTaskOperations';
 
-interface PERTProps {
-  tasks: Task[];
-}
-
-export function PERT({ tasks }: PERTProps) {
+export function PERT() {
+  const { tasks } = useTaskOperations();
   const svgRef = useRef<SVGSVGElement>(null);
   const logger = useLogger('PERT');
 
   useEffect(() => {
     logger.debug('PERT mounted', { taskCount: tasks.length });
     return () => logger.debug('PERT unmounted');
-  }, []);
+  }, [tasks]);
 
   useEffect(() => {
     if (!svgRef.current || tasks.length === 0) return;
