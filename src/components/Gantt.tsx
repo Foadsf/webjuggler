@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Task } from '../types';
 import { addDays, differenceInDays, format, min, max, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { useLogger } from '../lib/logger';
 
 interface GanttProps {
   tasks: Task[];
@@ -9,8 +10,15 @@ interface GanttProps {
 
 export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
   const [draggingTask, setDraggingTask] = useState<{ id: string; startX: number; originalStart: Date; originalEnd: Date } | null>(null);
+  const logger = useLogger('Gantt');
+
+  useEffect(() => {
+    logger.debug('Gantt mounted', { taskCount: tasks.length });
+    return () => logger.debug('Gantt unmounted');
+  }, []);
 
   const { startDate, endDate, days } = useMemo(() => {
+    const startTime = performance.now();
     if (tasks.length === 0) return { startDate: new Date(), endDate: new Date(), days: [] };
 
     const dates = tasks.flatMap(t => [t.start, t.end]).filter((d): d is Date => !!d);
@@ -20,15 +28,38 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
     const minDate = startOfWeek(min(dates));
     const maxDate = endOfWeek(max(dates));
     
-    return {
+    const result = {
       startDate: minDate,
       endDate: maxDate,
       days: eachDayOfInterval({ start: minDate, end: maxDate })
     };
+    
+    const endTime = performance.now();
+    logger.debug('Gantt calculation complete', { 
+      duration: `${(endTime - startTime).toFixed(2)}ms`, 
+      dayCount: result.days.length,
+      hasValidDates: dates.length > 0
+    });
+    
+    return result;
   }, [tasks]);
 
+  const hasAnyValidDates = useMemo(() => 
+    tasks.some(t => t.start && !isNaN(t.start.getTime()) && t.end && !isNaN(t.end.getTime())),
+    [tasks]
+  );
+
   if (tasks.length === 0) {
-    return <div className="flex items-center justify-center h-full text-gray-500">No tasks with dates to display</div>;
+    return <div className="flex items-center justify-center h-full text-gray-500">No tasks loaded</div>;
+  }
+
+  if (!hasAnyValidDates) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 p-6 text-center">
+        <p className="text-lg font-medium">No valid dates found</p>
+        <p className="text-sm mt-1">Gantt view requires tasks to have both start and end dates defined.</p>
+      </div>
+    );
   }
 
   const totalDays = days.length;
@@ -36,6 +67,7 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
 
   const handleDragStart = (e: React.MouseEvent, task: Task) => {
     if (!task.start || !task.end || !onTaskUpdate) return;
+    logger.info('Task drag started', { taskId: task.id, start: task.start });
     setDraggingTask({
       id: task.id,
       startX: e.clientX,
@@ -53,17 +85,29 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
     if (deltaDays !== 0) {
       const task = tasks.find(t => t.id === draggingTask.id);
       if (task) {
+        const newStart = addDays(draggingTask.originalStart, deltaDays);
+        const newEnd = addDays(draggingTask.originalEnd, deltaDays);
+        
+        logger.debug('Task dragging', { 
+          taskId: task.id, 
+          deltaDays, 
+          newStart: format(newStart, 'yyyy-MM-dd') 
+        });
+
         onTaskUpdate({
           ...task,
-          start: addDays(draggingTask.originalStart, deltaDays),
-          end: addDays(draggingTask.originalEnd, deltaDays),
+          start: newStart,
+          end: newEnd,
         });
       }
     }
   };
 
   const handleDragEnd = () => {
-    setDraggingTask(null);
+    if (draggingTask) {
+      logger.info('Task drag ended', { taskId: draggingTask.id });
+      setDraggingTask(null);
+    }
   };
 
   return (
@@ -101,8 +145,30 @@ export function Gantt({ tasks, onTaskUpdate }: GanttProps) {
             let width = 0;
 
             if (hasDates) {
-              leftOffset = differenceInDays(task.start!, startDate) * cellWidth;
-              width = (differenceInDays(task.end!, task.start!) + 1) * cellWidth;
+              const startVal = task.start!;
+              const endVal = task.end!;
+              
+              const diffStart = differenceInDays(startVal, startDate);
+              const diffEnd = differenceInDays(endVal, startVal);
+              
+              leftOffset = diffStart * cellWidth;
+              width = (diffEnd + 1) * cellWidth;
+
+              // NaN safety and minimum width
+              if (isNaN(leftOffset)) leftOffset = 0;
+              if (isNaN(width) || width < 0) width = 0;
+              if (width > 0 && width < 2) width = 2; // Minimum visible width
+
+              if (isNaN(diffStart) || isNaN(diffEnd) || width === 0) {
+                logger.warn('Gantt bar calculation anomaly', { 
+                  taskId: task.id, 
+                  leftOffset, 
+                  width, 
+                  start: startVal, 
+                  end: endVal,
+                  startDate
+                });
+              }
             }
 
             return (
