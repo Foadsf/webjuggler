@@ -1,6 +1,7 @@
 export interface Task {
   id: string;
   name: string;
+  description?: string;
   start?: Date;
   end?: Date;
   duration?: number; // in days
