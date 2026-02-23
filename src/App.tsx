@@ -10,6 +10,7 @@ import { DebugConsole } from './components/DebugConsole';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TaskProvider, useTaskContext } from './context/TaskContext';
 import { useTaskOperations } from './hooks/useTaskOperations';
+import { PERTErrorBoundary } from './components/PERTErrorBoundary';
 
 type ViewMode = 'kanban' | 'gantt' | 'pert';
 
@@ -186,9 +187,21 @@ function MainLayout() {
             </div>
           ) : (
             <>
-              {view === 'kanban' && <Kanban />}
-              {view === 'gantt' && <Gantt />}
-              {view === 'pert' && <PERT />}
+              {view === 'kanban' && (
+                <ErrorBoundary>
+                  <Kanban />
+                </ErrorBoundary>
+              )}
+              {view === 'gantt' && (
+                <ErrorBoundary>
+                  <Gantt />
+                </ErrorBoundary>
+              )}
+              {view === 'pert' && (
+                <PERTErrorBoundary>
+                  <PERT />
+                </PERTErrorBoundary>
+              )}
             </>
           )}
         </main>

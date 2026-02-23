@@ -7,11 +7,16 @@ module.exports = {
   ],
   ignorePatterns: ['dist', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
+  parserOptions: {
+    project: ['./tsconfig.json'],
+  },
   plugins: ['@typescript-eslint'],
   rules: {
     'no-multi-str': 'error',
     '@typescript-eslint/no-explicit-any': 'off',
     '@typescript-eslint/no-unused-vars': 'warn',
     '@typescript-eslint/ban-ts-comment': 'off',
+    'no-unsafe-optional-chaining': 'error',
+    '@typescript-eslint/prefer-optional-chain': 'error',
   },
 }
